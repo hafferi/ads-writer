@@ -83,7 +83,7 @@ const dlTxt=(c,n)=>{const a=document.createElement("a");a.href=URL.createObjectU
 
 // ── Simulation mode ───────────────────────────────────────────────
 // Flip to false before deploying to production
-const SIM_MODE = true;
+const SIM_MODE = false;
 
 function mockGenerate(product, adTypes, keywords="", usp="") {
   const p   = product || "Your Product";
@@ -1364,7 +1364,6 @@ const AgencyView = ({C, user, archive, clients, setArchive, setClients, activity
   const generate=async()=>{
     if(!form.product.trim()){setError("Please enter a product or service.");return;}
     if(!adTypes.length){setError("Select at least one ad format.");return;}
-    if(!SIM_MODE && !apiKey.trim()){setError("Please enter your Anthropic API key.");return;}
     setError(""); setLoading(true); setResult(null); setSavedIds({});
 
     // ── Simulation path ──────────────────────────────────────────
@@ -1410,16 +1409,17 @@ JSON FORMAT:
 {${typeInstr}}`;
 
     try {
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
+      const res=await fetch("/api/generate",{
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json"},
         body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:prompt}]})
       });
       const data=await res.json();
+      if(data.error) throw new Error(data.error);
       const text=data.content.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
       setResult(JSON.parse(text));
       await logActivity(`Generated ${adTypes.map(t=>AD_LABELS[t]).join("+")} for "${form.product}"${activeClient?` (${activeClient.name})`:""}`);
-    } catch { setError("Generation failed — check your API key and try again."); }
+    } catch(e) { setError(`Generation failed — ${e.message||"please try again."}`); }
     setLoading(false);
   };
 
